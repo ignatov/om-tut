@@ -2,7 +2,9 @@
   (:require-macros [cljs.core.async.macros :refer [go]])
   (:require [om.core :as om :include-macros true]
             [om.dom :as dom :include-macros true]
-            [cljs.core.async :refer [put! chan <!]]))
+            [cljs.core.async :refer [put! chan <!]]
+            [clojure.data :as data]
+            [clojure.string :as string]))
 
 (enable-console-print!)
 
@@ -32,7 +34,24 @@
       (dom/li nil
               (dom/span nil (display-name contact))
               (dom/button #js {:onClick
-                               (fn [e] (put! delete @contact)) } "Delete")))))
+                                (fn [e] (put! delete @contact))} "Delete")))))
+
+(defn parse-contact [contact-str]
+  (let [[first middle last :as parts] (string/split contact-str #"\s+")
+        [first last middle] (if (nil? last) [first middle] [first last middle])
+        middle (when middle (string/replace middle "." ""))
+        c (if middle (count middle) 0)]
+    (when (>= (count parts) 2)
+      (cond-> {:first first :last last}
+              (== c 1) (assoc :middle-initial middle)
+              (>= c 2) (assoc :middle middle)))))
+
+(defn add-contact [app owner]
+  (let [input (om/get-node owner "new-contact")
+        new-contact (-> input .-value parse-contact)]
+    (when new-contact
+      (om/transact! app :contacts #(conj % new-contact))
+      (set! (.-value input) ""))))
 
 (defn contacts-view [app owner]
   (reify
@@ -53,7 +72,10 @@
                (dom/h2 nil "Contact list")
                (apply dom/ul nil
                       (om/build-all contact-view (:contacts app)
-                                    {:init-state {:delete delete}}))))))
+                                    {:init-state {:delete delete}}))
+               (dom/div nil
+                        (dom/input #js {:type "text" :ref "new-contact"})
+                        (dom/button #js {:onClick #(add-contact app owner)} "Add contact"))))))
 
 (om/root contacts-view app-state
          {:target (. js/document (getElementById "contacts"))})
