@@ -11,10 +11,8 @@
 (om/root
   (fn [app owner]
     (om/component
-      (apply dom/ul nil
+      (apply dom/ul #js {:className "animals"}
              (map (fn [text] (dom/li nil text)) (:list app)))))
   app-state
   {:target (. js/document (getElementById "app"))})
 
-
-;(swap! app-state assoc :text "Do it live!")
